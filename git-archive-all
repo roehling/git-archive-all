@@ -1,0 +1,346 @@
+#!/bin/bash
+#
+# GIT-ARCHIVE-ALL
+#
+# Copyright (c) 2019 Timo Röhling
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+set -e
+
+self="${0##*/}"
+self="${self%.*}"
+version="1.0.0"
+whsp="${self//?/ }"
+outfile=
+prefix=
+format=
+verbose=0
+recursive=1
+worktree_attributes=0
+compress_flag=
+options="$(getopt -n "$self" -o hlrv0123456789o: --long help,list,version,verbose,worktree-attributes,recursive,no-recursive,format:,output:,prefix: -- "$@")"
+eval "set -- $options"
+
+while [[ "$#" -gt 0 ]]
+do
+	case "$1" in
+		-h|--help)
+			cat<<-EOF
+			$self - recursively create an archive of files from a named tree
+
+			Synopsis: $self [--format=<fmt>] [--list] [--prefix=<prefix>/]
+			          $whsp [-o <file> | --output=<file>] [--worktree-attributes]
+			          $whsp [-v | --verbose] [--recursive | --no-recursive] 
+			          $whsp [-0 | -1 | -2 | ... | -9 ] <tree-ish> [<path>...]
+
+			$self works similar to git-archive, but will also include files
+			from submodules into the archive.
+
+			Options:
+			    --format=<fmt>
+			        Format of the resulting archive: tar or zip. If the options is not
+			        given, and the output file is specified, the format is inferred
+			        from the filename if possible (e.g. writing to "foo.zip" makes the
+			        output to be in the zip format). Otherwise the output format is
+			        tar.
+
+			    -l, --list
+			        Show all available formats.
+
+			    --prefix=<prefix>/
+			        Prepend <prefix>/ to each filename in the archive.
+
+			    -o <file>, --output=<file>
+			        Write the archive to <file> instead of stdout.
+
+			    --worktree-attributes
+			        Look for attributes in .gitattributes files in the working tree as
+			        well.
+
+			    -v, --verbose
+			        Print all executed commands to stderr. If used twice, the
+			        --verbose flag will also be passed to all git invocations.
+
+			    -0, -1, -2, ... -9
+			        Choose compression strength from -0 (no compression) to -9
+			        (maximum compression). If omitted, the backend default is used.
+
+			    -r, --recursive
+			        Recursively archive files from submodules within submodules. This
+			        is the default setting.
+
+			    --no-recursive
+			        Do not recursively archive files from submodules within submodules.
+
+			    <tree-ish>
+			        The tree or commit to produce an archive for.
+
+			    <path>
+			        Without an optional path parameter, all files and subdirectories
+			        of the current working directory are include in the archive. If
+			        one or more paths are specified, only these are included.
+
+			EOF
+			exit 0
+			;;
+		--version)
+			echo $version
+			exit 0
+			;;
+		-l|--list)
+			git archive --list
+			exit 0
+			;;
+		-o|--output)
+			outfile="$2"
+			shift 2
+			;;
+		-v|--verbose)
+			let ++verbose
+			shift
+			;;
+		--worktree-attributes)
+			let ++worktree_attributes
+			shift
+			;;
+		-r|--recursive)
+			recursive=1
+			shift
+			;;
+		--no-recursive)
+			recursive=0
+			shift
+			;;
+		-[0-9])
+			compress_flag="$1"
+			shift
+			;;
+		--format)
+			format="$2"
+			shift 2
+			;;
+		--prefix)
+			prefix="$2"
+			[[ "$prefix" == */ ]] || echo>&2 "$self: warning: --prefix=$prefix has no trailing slash"
+			shift 2
+			;;
+		--)
+			shift
+			break
+			;;
+		*)
+			exit 1
+			;;
+	esac
+done
+tree_ish="${1:-HEAD}"
+shift || true
+
+extra_args=()
+quiet_flag=-q
+if [[ "$verbose" -ge 2 ]]
+then
+	quiet_flag=
+	extra_args+=("-v")
+fi
+[[ "$worktree_attributes" -eq 0 ]] || extra_args+=("--worktree-attributes")
+
+if [[ -z "$format" ]]
+then
+	case "$outfile" in
+		*.tar)
+			format=tar
+			;;
+		*.tar.gz|*.tgz)
+			format=tar.gz
+			;;
+		*.tar.bz2|*.tbz2)
+			format=tar.bz2
+			;;
+		*.tar.xz)
+			format=tar.xz
+			;;
+		*.zip)
+			format=zip
+			;;
+		*)
+			echo>&2 "$self: cannot determine format from output filename, using tar format"
+			format=tar
+			;;
+	esac
+fi
+
+workdir=$(mktemp -d)
+
+cleanup()
+{
+	rm -rf "$workdir"
+}
+
+say()
+{
+	[[ "$verbose" -eq 0 ]] || echo "$self: $@" | sed -e 's#'"$workdir"'#${workdir}#g' >&2
+}
+
+run()
+{
+	say "$@"
+	"$@"
+}
+
+trap cleanup EXIT
+
+subtars=()
+paths=("$@")
+
+process_submodules()
+{
+
+	# This is where the magic happens. We use git-ls-tree to examine the
+	# desired tree and look for blobs of type "commit", which contain
+	# submodule commit hashes.  If that submodule path is available in the
+	# our working copy, we can include it in our archive. If that submodule
+	# is not checked out, we cannot include it in the archive. This is by
+	# design, since we must not change the repository's state in any way,
+	# and the user may very well have left out a submodule intentionally.
+	#
+	# Note that this also means that we cannot include submodules which are
+	# no longer part of the current working copy, for instance if we try to
+	# archive an older commit with a submodule that has since been removed.
+	# This is somewhat unfortunate, since the output of git-archive-all
+	# depends not only on the recorded commit tree, but also on the state
+	# of the working copy.
+
+	while read fmode ftype subtree_ish subpath
+	do
+		subpath="$2$subpath"
+		if [[ "$ftype" == "commit" && -d "$subpath" ]]
+		then
+			[[ "$subpath" == */ ]] || subpath="$subpath/"
+			#
+			# We have found a submodule, now we need to check if it contains any of
+			# the paths that we are supposed to include in the archive
+			#
+			included_paths=()
+			include_full=0
+			[[ ${#paths[@]} -gt 0 ]] || include_full=1
+			for path in "${paths[@]}"
+			do
+				[[ "$path" == */ ]] || path="$path/"
+				if [[ "$subpath" == "$path"* ]]
+				then
+					# the path spec is a prefix of $subpath, so we need to include
+					# the full submodule regardless of any other path spec.
+					include_full=1
+					included_paths=()
+					break
+				fi
+				if [[ "$path" == "$subpath"* ]]
+				then
+					# the path spec refers to a subtree of the submodule, thus we
+					# need to include the subtree
+					subtree="${path:${#subpath}}"
+					subtree="${subtree%/}"
+					included_paths+=("${subtree}")
+				fi
+			done
+			if [[ "$include_full" == 1 || "${#included_paths[@]}" -gt 0 ]]
+			then
+				# This submodule will contribute to our final archive, so we create
+				# a temporary tar file of everything we need.
+				archive="$workdir/${#subtars[@]}.tar"
+				if run git -C "$subpath" archive "${extra_args[@]}" -o "$archive" --prefix="${prefix}${subpath}" "$subtree_ish" "${included_paths[@]}"
+				then
+					# Only add this archive if the git command ran successfully. Otherwise, we skip this submodule
+					subtars+=("$archive")
+					# Recursively check for other submodules
+					[[ "$recursive" -eq 0 ]] || process_submodules "$subtree_ish" "$subpath"
+				fi
+			fi
+		fi
+	done < <( git ${2:+-C "$2"} ls-tree -r "$1" 2>/dev/null)
+}
+
+process_submodules "$tree_ish"
+
+if [[ "${#subtars[@]}" -gt 0 ]]
+then
+	# If there are any submodules to be included, we first build the
+	# superproject archive, concatenate the submodule archives to it, and
+	# finally compress the combined archive.
+	run git archive "${extra_args[@]}" -o "$workdir/m.tar" ${prefix:+--prefix="${prefix}"} "$tree_ish" "$@"
+	for subtar in "${subtars[@]}"
+	do
+		run tar -Af "$workdir/m.tar" "$subtar"
+		rm -f "$subtar"
+	done
+	if [[ "${outfile:--}" = - ]]
+	then
+		case "$format" in
+			tar.gz|tgz)
+				run gzip $compress_flag -cn "$workdir/m.tar"
+				;;
+			tar.bz2)
+				run bzip2 $compress_flag -c "$workdir/m.tar"
+				;;
+			tar.xz)
+				run xz $compress_flag -c "$workdir/m.tar"
+				;;
+			zip)
+				mkdir -p "$workdir/out"
+				run tar -C "$workdir/out" -xf "$workdir/m.tar"
+				say cd "$workdir/out" "&&" zip $quiet_flag $compress_flag -r - .
+				cd "$workdir/out" && zip $quiet_flag $compress_flag -r - .
+				;;
+			*)
+				run cat "$workdir/m.tar"
+				;;
+		esac
+	else
+		case "$format" in
+			tar.gz|tgz)
+				run gzip -n "$workdir/m.tar"
+				run mv "$workdir/m.tar.gz" "$outfile"
+				;;
+			tar.bz2)
+				run bzip2 "$workdir/m.tar"
+				run mv "$workdir/m.tar.gz" "$outfile"
+				;;
+			tar.xz)
+				run xz "$workdir/m.tar"
+				run mv "$workdir/m.tar.xz" "$outfile"
+				;;
+			zip)
+				mkdir -p "$workdir/out"
+				run tar -C "$workdir/out" -xf "$workdir/m.tar"
+				say cd "$workdir/out" "&&" zip $quiet_flag $compress_flag -r - . "> $outfile"
+				( cd "$workdir/out" && zip $quiet_flag $compress_flag -r - . ) > "$outfile"
+				;;
+			*)
+				run mv "$workdir/m.tar" "$outfile"
+				;;
+		esac
+	fi
+else
+	# If there are no submodules, fall back to the regular git archive command
+	# for maximum compatibility
+	run git archive "${extra_args[@]}" ${format:+--format="$format"} ${outfile:+-o "$outfile"} ${prefix:+--prefix="${prefix}"} $compress_flag "$tree_ish" "${paths[@]}"
+fi
+

@@ -24,6 +24,99 @@
 #
 set -e
 
+:<<=cut
+=pod
+
+=head1 NAME
+
+git-archive-all - recursively create an archive of files from a named tree
+
+=head1 SYNOPSIS
+
+git-archive-all [--format=<fmt>] [--list] [--prefix=<prefix>]
+                [-o <file> | --output=<file>] [--worktree-attributes]
+                [-v | --verbose] [--recursive | --no-recursive]
+                [-0 | -1 | -2 | ... | -9] <tree-ish> [<path> ...]
+
+=head1 DESCRIPTION
+
+Creates an archive of the specified format containing the tree structure for
+the named tree, and writes it out to the standard output. If E<lt>prefixE<gt>
+is specified it is prepended to the filenames in the archive.
+
+B<git-archive-all> behaves differently when given a tree ID versus when given a
+commit ID or tag ID. In the first case the current time is used as the
+modification time of each file in the archive. In the latter case the commit
+time as recorded in the referenced commit object is used instead. Additionally
+the commit ID is stored in a global extended pax header if the tar format is
+used; it can be extracted using git get-tar-commit-id. In ZIP files it is
+stored as a file comment.
+
+=head1 OPTIONS
+
+=over
+
+=item --format=<fmt>
+
+Format of the resulting archive: tar or zip. If the options is not
+given, and the output file is specified, the format is inferred
+from the filename if possible (e.g. writing to "foo.zip" makes the
+output to be in the zip format). Otherwise the output format is
+tar.
+
+=item -l, --list
+
+Show all available formats.
+
+=item --prefix=<prefix>/
+
+Prepend <prefix>/ to each filename in the archive.
+
+=item -o <file>, --output=<file>
+
+Write the archive to <file> instead of stdout.
+
+=item --worktree-attributes
+
+Look for attributes in .gitattributes files in the working tree as well.
+
+=item -v, --verbose
+
+Print all executed commands to stderr. If used twice, the
+--verbose flag will also be passed to all git invocations.
+
+=item -0, -1, -2, ... -9
+
+Choose compression strength from -0 (no compression) to -9
+(maximum compression). If omitted, the backend default is used.
+
+=item -r, --recursive
+
+Recursively archive files from submodules within submodules. This
+is the default setting.
+
+=item --no-recursive
+
+Do not recursively archive files from submodules within submodules.
+
+=item <tree-ish>
+
+The tree or commit to produce an archive for.
+
+=item <path>
+
+Without an optional path parameter, all files and subdirectories
+of the current working directory are include in the archive. If
+one or more paths are specified, only these are included.
+
+=back
+
+=head1 SEE ALSO
+
+L<git-archive(1)>
+
+=cut
+
 self="${0##*/}"
 self="${self%.*}"
 version="1.0.0"
@@ -47,7 +140,7 @@ do
 
 			Synopsis: $self [--format=<fmt>] [--list] [--prefix=<prefix>/]
 			          $whsp [-o <file> | --output=<file>] [--worktree-attributes]
-			          $whsp [-v | --verbose] [--recursive | --no-recursive] 
+			          $whsp [-v | --verbose] [--recursive | --no-recursive]
 			          $whsp [-0 | -1 | -2 | ... | -9 ] <tree-ish> [<path>...]
 
 			$self works similar to git-archive, but will also include files

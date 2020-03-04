@@ -8,8 +8,9 @@ Synopsis
 
         git archive-all [--format=<fmt>] [--list] [--prefix=<prefix>/]
                         [-o <file> | --output=<file>] [--worktree-attributes]
-                        [-v | --verbose] [--recursive | --no-recursive] 
-                        [-0 | -1 | -2 | ... | -9 ] <tree-ish> [<path>...]
+                        [-v | --verbose] [--recursive | --no-recursive]
+                        [--fail-missing] [-0 | -1 | -2 | ... | -9 ]
+                        <tree-ish> [<path>...]
 
 
 ``git archive-all`` works similar to ``git archive``, but will also include

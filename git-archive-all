@@ -24,99 +24,6 @@
 #
 set -e
 
-:<<=cut
-=pod
-
-=head1 NAME
-
-git-archive-all - recursively create an archive of files from a named tree
-
-=head1 SYNOPSIS
-
-git-archive-all [--format=<fmt>] [--list] [--prefix=<prefix>]
-                [-o <file> | --output=<file>] [--worktree-attributes]
-                [-v | --verbose] [--recursive | --no-recursive]
-                [-0 | -1 | -2 | ... | -9] <tree-ish> [<path> ...]
-
-=head1 DESCRIPTION
-
-Creates an archive of the specified format containing the tree structure for
-the named tree, and writes it out to the standard output. If E<lt>prefixE<gt>
-is specified it is prepended to the filenames in the archive.
-
-B<git-archive-all> behaves differently when given a tree ID versus when given a
-commit ID or tag ID. In the first case the current time is used as the
-modification time of each file in the archive. In the latter case the commit
-time as recorded in the referenced commit object is used instead. Additionally
-the commit ID is stored in a global extended pax header if the tar format is
-used; it can be extracted using git get-tar-commit-id. In ZIP files it is
-stored as a file comment.
-
-=head1 OPTIONS
-
-=over
-
-=item --format=<fmt>
-
-Format of the resulting archive: tar or zip. If the options is not
-given, and the output file is specified, the format is inferred
-from the filename if possible (e.g. writing to "foo.zip" makes the
-output to be in the zip format). Otherwise the output format is
-tar.
-
-=item -l, --list
-
-Show all available formats.
-
-=item --prefix=<prefix>/
-
-Prepend <prefix>/ to each filename in the archive.
-
-=item -o <file>, --output=<file>
-
-Write the archive to <file> instead of stdout.
-
-=item --worktree-attributes
-
-Look for attributes in .gitattributes files in the working tree as well.
-
-=item -v, --verbose
-
-Print all executed commands to stderr. If used twice, the
---verbose flag will also be passed to all git invocations.
-
-=item -0, -1, -2, ... -9
-
-Choose compression strength from -0 (no compression) to -9
-(maximum compression). If omitted, the backend default is used.
-
-=item -r, --recursive
-
-Recursively archive files from submodules within submodules. This
-is the default setting.
-
-=item --no-recursive
-
-Do not recursively archive files from submodules within submodules.
-
-=item <tree-ish>
-
-The tree or commit to produce an archive for.
-
-=item <path>
-
-Without an optional path parameter, all files and subdirectories
-of the current working directory are include in the archive. If
-one or more paths are specified, only these are included.
-
-=back
-
-=head1 SEE ALSO
-
-L<git-archive(1)>
-
-=cut
-
 self="${0##*/}"
 self="${self%.*}"
 version="1.0.0"
@@ -126,9 +33,10 @@ prefix=
 format=
 verbose=0
 recursive=1
+fail_missing=0
 worktree_attributes=0
 compress_flag=
-options="$(getopt -n "$self" -o hlrv0123456789o: --long help,list,version,verbose,worktree-attributes,recursive,no-recursive,format:,output:,prefix: -- "$@")"
+options="$(getopt -n "$self" -o hlrv0123456789o: --long help,list,version,verbose,worktree-attributes,recursive,no-recursive,fail-missing,format:,output:,prefix: -- "$@")"
 eval "set -- $options"
 
 while [[ "$#" -gt 0 ]]
@@ -141,7 +49,8 @@ do
 			Synopsis: $self [--format=<fmt>] [--list] [--prefix=<prefix>/]
 			          $whsp [-o <file> | --output=<file>] [--worktree-attributes]
 			          $whsp [-v | --verbose] [--recursive | --no-recursive]
-			          $whsp [-0 | -1 | -2 | ... | -9 ] <tree-ish> [<path>...]
+			          $whsp [--fail-missing] [-0 | -1 | -2 | ... | -9 ]
+			          $whsp <tree-ish> [<path>...]
 
 			$self works similar to git-archive, but will also include files
 			from submodules into the archive.
@@ -182,12 +91,15 @@ do
 			    --no-recursive
 			        Do not recursively archive files from submodules within submodules.
 
+			    --fail-missing
+			        Do not silently ignore missing submodules, but error out instead.
+
 			    <tree-ish>
 			        The tree or commit to produce an archive for.
 
 			    <path>
 			        Without an optional path parameter, all files and subdirectories
-			        of the current working directory are include in the archive. If
+			        of the current working directory are included in the archive. If
 			        one or more paths are specified, only these are included.
 
 			EOF
@@ -219,6 +131,10 @@ do
 			;;
 		--no-recursive)
 			recursive=0
+			shift
+			;;
+		--fail-missing)
+			fail_missing=1
 			shift
 			;;
 		-[0-9])
@@ -317,8 +233,8 @@ process_submodules()
 	# Note that this also means that we cannot include submodules which are
 	# no longer part of the current working copy, for instance if we try to
 	# archive an older commit with a submodule that has since been removed.
-	# This is somewhat unfortunate, since the output of git-archive-all
-	# depends not only on the recorded commit tree, but also on the state
+	# This is somewhat unfortunate, as it makes the output of git-archive-all
+	# depend not only on the recorded commit tree, but also on the state
 	# of the working copy.
 
 	while read fmode ftype subtree_ish subpath
@@ -365,6 +281,10 @@ process_submodules()
 					subtars+=("$archive")
 					# Recursively check for other submodules
 					[[ "$recursive" -eq 0 ]] || process_submodules "$subtree_ish" "$subpath"
+				elif [[ "$fail_missing" == 1 ]]
+				then
+					echo>&2 "$self: failed to archive submodule tree $subtree_ish in '$subpath'"
+					exit 1
 				fi
 			fi
 		fi
@@ -436,4 +356,122 @@ else
 	# for maximum compatibility
 	run git archive "${extra_args[@]}" ${format:+--format="$format"} ${outfile:+-o "$outfile"} ${prefix:+--prefix="${prefix}"} $compress_flag "$tree_ish" "${paths[@]}"
 fi
+exit $?
+
+:<<=cut
+=pod
+
+=head1 NAME
+
+git-archive-all - recursively create an archive of files from a named tree
+
+=head1 SYNOPSIS
+
+B<git-archive-all> [B<--format=><I<fmt>>] [B<--list>] [B<--prefix=><I<prefix>>]
+                [B<-o> <I<file>> | B<--output=><I<file>>] [B<--worktree-attributes>]
+                [B<-v> | B<--verbose>] [B<--recursive> | B<--no-recursive>]
+                [B<--fail-missing>] [B<-0> | B<-1> | B<-2> | ... | B<-9>]
+                <I<tree-ish>> [<I<path>> ...]
+
+=head1 DESCRIPTION
+
+Creates an archive of the specified format containing the tree structure for
+the named tree, and writes it out to the standard output. If <I<prefix>>
+is specified it is prepended to the filenames in the archive.
+
+B<git-archive-all> behaves differently when given a tree ID versus when given a
+commit ID or tag ID. In the first case the current time is used as the
+modification time of each file in the archive. In the latter case the commit
+time as recorded in the referenced commit object is used instead. Additionally
+the commit ID is stored in a global extended pax header if the tar format is
+used; it can be extracted using S<B<git get-tar-commit-id>>. In ZIP files it is
+stored as a file comment.
+
+=head1 OPTIONS
+
+=over
+
+=item B<--format=><I<fmt>>
+
+Format of the resulting archive: tar or zip. If the options is not
+given, and the output file is specified, the format is inferred
+from the filename if possible (e.g. writing to "foo.zip" makes the
+output to be in the zip format). Otherwise the output format is
+tar.
+
+=item B<-l>, B<--list>
+
+Show all available formats.
+
+=item B<--prefix=><I<prefix>>/
+
+Prepend <I<prefix>>/ to each filename in the archive.
+
+=item B<-o> <I<file>>, B<--output=><I<file>>
+
+Write the archive to <I<file>> instead of stdout.
+
+=item B<--worktree-attributes>
+
+Look for attributes in .gitattributes files in the working tree as well.
+
+=item B<-v>, B<--verbose>
+
+Print all executed commands to stderr. If used twice, the B<--verbose> flag
+will also be passed to all git invocations.
+
+=item B<-0>, B<-1>, B<-2>, ... B<-9>
+
+Choose compression strength from -0 (no compression) to -9 (maximum
+compression). If omitted, the backend default is used.
+
+=item B<-r>, B<--recursive>
+
+Recursively archive files from submodules within submodules. This is the
+default setting.
+
+=item B<--no-recursive>
+
+Do not recursively archive files from submodules within submodules.
+
+=item B<--fail-missing>
+
+Make B<git-archive-all> fail if a submodule is missing from the working
+copy. See L<RESTRICTIONS> for a more in-depth explanation.
+
+=item <I<tree-ish>>
+
+The tree or commit to produce an archive for.
+
+=item <I<path>>
+
+Without an optional path parameter, all files and subdirectories of the current
+working directory are included in the archive. If one or more paths are
+specified, only these are included.
+
+=back
+
+=head1 RESTRICTIONS
+
+B<git-archive-all> works by recursively calling S<B<git archive>> in all
+submodules. If a submodule is not currently checked out, B<git-archive-all> has
+no way to retrieve it automatically, as this would require modifications to the
+state of your working copy (and possibly remote access to the upstream repo).
+Unfortunately, this makes the output of B<git-archive-all> depend not only on the
+recorded state of the tree, but also on the state of the working copy.
+
+In particular, it is not possible to fully archive an older tree-ish if it uses
+a submodule that is no longer part of the current HEAD. You may need to
+temporarily check out the older version (and re-run S<B<git submodule update
+--init>>) for that.
+
+By default, B<git-archive-all> will ignore any missing submodules, assuming
+this is a deliberate choice by the user. You can use the B<--fail-missing>
+option if you want to ensure that all submodules have been archived properly.
+
+=head1 SEE ALSO
+
+L<git-archive(1)>
+
+=cut
 

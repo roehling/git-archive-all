@@ -41,6 +41,5 @@ following alternatives instead:
 
 * https://github.com/Kentzo/git-archive-all
 
-  A Python implementation that can handle arbitrary filenames with weird
-  characters, including newlines.
-
+  A Python stand-alone implementation that does not depend on git-archive and
+  thus can write the whole archive in one go.

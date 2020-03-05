@@ -143,6 +143,9 @@ then
 		*.tar.*)
 			format="tar.${outfile##*.tar.}"
 			;;
+		*.*)
+			format="${outfile##*.}"
+			;;
 		*)
 			echo>&2 "$self: cannot determine archive format from file name, using 'tar'"
 			format=tar
@@ -176,7 +179,11 @@ say()
 
 run()
 {
-	say "$@"
+	if [[ "$verbose" -gt 0 ]]
+	then
+		(echo -n "$self:"; printf " %q" "$@"; printf "\n") | \
+		sed -e 's#'"$workdir"'#${workdir}#g' >&2
+	fi
 	"$@"
 }
 
@@ -203,7 +210,7 @@ process_submodules()
 	# depend not only on the recorded commit tree, but also on the state
 	# of the working copy.
 
-	while read fmode ftype subtree_ish subpath
+	while read -d $'\0' fmode ftype subtree_ish subpath
 	do
 		subpath="$2$subpath"
 		if [[ "$ftype" == "commit" && -d "$subpath" ]]
@@ -254,7 +261,7 @@ process_submodules()
 				fi
 			fi
 		fi
-	done < <( git ${2:+-C "$2"} ls-tree -r "$1" 2>/dev/null)
+	done < <( git ${2:+-C "$2"} ls-tree -z -r "$1" 2>/dev/null)
 }
 
 process_submodules "$tree_ish"
@@ -302,7 +309,7 @@ then
 			case "$format" in
 				tar.gz|tgz)
 					say gzip $compress_flag -cn "<$workdir/m.tar" ">$outfile"
-					gzip $compress_flag -cn <"$workdir/m.tar.gz" >"$outfile"
+					gzip $compress_flag -cn <"$workdir/m.tar" >"$outfile"
 					;;
 				zip)
 					mkdir -p "$workdir/out"

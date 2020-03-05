@@ -17,9 +17,8 @@ Synopsis
 files from submodules into the archive. This is not the only implementation of
 this particular feature, but it is the one that mimics ``git archive`` best.
 It uses the same command line arguments, and in the absense of submodules, it
-will behave identically. Basically, you can use it for all
-archiving purposes and need not to think about the technicalities of
-submodules.
+will behave identically. Basically, you can use it for all archiving purposes
+and need not think about the technicalities of submodules.
 
 Installation
 ------------
@@ -43,5 +42,5 @@ following alternatives instead:
 * https://github.com/Kentzo/git-archive-all
 
   A Python implementation that can handle arbitrary filenames with weird
-  character sets, including newlines.
+  characters, including newlines.
 

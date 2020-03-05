@@ -137,21 +137,30 @@ then
 		*.tar.gz|*.tgz)
 			format=tar.gz
 			;;
-		*.tar.bz2|*.tbz2)
-			format=tar.bz2
-			;;
-		*.tar.xz)
-			format=tar.xz
-			;;
 		*.zip)
 			format=zip
 			;;
+		*.tar.*)
+			format="tar.${outfile##*.tar.}"
+			;;
 		*)
-			echo>&2 "$self: cannot determine format from output filename, using tar format"
+			echo>&2 "$self: cannot determine archive format from file name, using 'tar'"
 			format=tar
 			;;
 	esac
 fi
+
+case "$format" in
+	tar|tar.gz|zip)
+		;;
+	*)
+		if ! git config "tar.$format.command" &>/dev/null
+		then
+			echo>&2 "$self: unknown archive format $format, using 'tar' instead"
+			format=tar
+		fi
+		;;
+esac
 
 workdir=$(mktemp -d)
 
@@ -263,50 +272,49 @@ then
 	done
 	if [[ "${outfile:--}" = - ]]
 	then
-		case "$format" in
-			tar.gz|tgz)
-				run gzip $compress_flag -cn "$workdir/m.tar"
-				;;
-			tar.bz2)
-				run bzip2 $compress_flag -c "$workdir/m.tar"
-				;;
-			tar.xz)
-				run xz $compress_flag -c "$workdir/m.tar"
-				;;
-			zip)
-				mkdir -p "$workdir/out"
-				run tar -C "$workdir/out" -xf "$workdir/m.tar"
-				say cd "$workdir/out" "&&" zip $quiet_flag $compress_flag -r - .
-				cd "$workdir/out" && zip $quiet_flag $compress_flag -r - .
-				;;
-			*)
-				run cat "$workdir/m.tar"
-				;;
-		esac
+		if compress_cmd="$(git config "tar.$format.command")"
+		then
+			say $compress_cmd $compress_flag "<$workdir/m.tar"
+			$compress_cmd $compress_flag <"$workdir/m.tar"
+		else
+			case "$format" in
+				tar.gz|tgz)
+					say gzip $compress_flag -cn "<$workdir/m.tar"
+					gzip $compress_flag -cn <"$workdir/m.tar"
+					;;
+				zip)
+					mkdir -p "$workdir/out"
+					run tar -C "$workdir/out" -xf "$workdir/m.tar"
+					say cd "$workdir/out" "&&" zip $quiet_flag $compress_flag -r - .
+					cd "$workdir/out" && zip $quiet_flag $compress_flag -r - .
+					;;
+				*)
+					run cat "$workdir/m.tar"
+					;;
+			esac
+		fi
 	else
-		case "$format" in
-			tar.gz|tgz)
-				run gzip -n "$workdir/m.tar"
-				run mv "$workdir/m.tar.gz" "$outfile"
-				;;
-			tar.bz2)
-				run bzip2 "$workdir/m.tar"
-				run mv "$workdir/m.tar.gz" "$outfile"
-				;;
-			tar.xz)
-				run xz "$workdir/m.tar"
-				run mv "$workdir/m.tar.xz" "$outfile"
-				;;
-			zip)
-				mkdir -p "$workdir/out"
-				run tar -C "$workdir/out" -xf "$workdir/m.tar"
-				say cd "$workdir/out" "&&" zip $quiet_flag $compress_flag -r - . "> $outfile"
-				( cd "$workdir/out" && zip $quiet_flag $compress_flag -r - . ) > "$outfile"
-				;;
-			*)
-				run mv "$workdir/m.tar" "$outfile"
-				;;
-		esac
+		if compress_cmd="$(git config "tar.$format.command")"
+		then
+			say $compress_cmd $compress_flag "<$workdir/m.tar" ">$outfile"
+			$compress_cmd $compress_flag <"$workdir/m.tar" >"$outfile"
+		else
+			case "$format" in
+				tar.gz|tgz)
+					say gzip $compress_flag -cn "<$workdir/m.tar" ">$outfile"
+					gzip $compress_flag -cn <"$workdir/m.tar.gz" >"$outfile"
+					;;
+				zip)
+					mkdir -p "$workdir/out"
+					run tar -C "$workdir/out" -xf "$workdir/m.tar"
+					say cd "$workdir/out" "&&" zip $quiet_flag $compress_flag -r - . ">$outfile"
+					( cd "$workdir/out" && zip $quiet_flag $compress_flag -r - . ) >"$outfile"
+					;;
+				*)
+					run mv "$workdir/m.tar" "$outfile"
+					;;
+			esac
+		fi
 	fi
 else
 	# If there are no submodules, fall back to the regular git archive command
@@ -411,8 +419,8 @@ specified, only these are included.
 =head1 RESTRICTIONS
 
 B<git-archive-all> works by recursively calling S<B<git archive>> in all
-submodules. If a submodule is not currently checked out, B<git-archive-all> has
-no way to retrieve it automatically, as this would require modifications to the
+submodules. If a submodule is not initialized, B<git-archive-all> has
+no way to initialize it automatically, as this would require modifications to the
 state of your working copy (and possibly remote access to the upstream repo).
 Unfortunately, this makes the output of B<git-archive-all> depend not only on the
 recorded state of the tree, but also on the state of the working copy.
@@ -425,6 +433,14 @@ temporarily check out the older version (and re-run S<B<git submodule update
 By default, B<git-archive-all> will ignore any missing submodules, assuming
 this is a deliberate choice by the user. You can use the B<--fail-missing>
 option if you want to ensure that all submodules have been archived properly.
+
+B<git-archive-all> does not support the B<--remote> and B<--exec> options
+of B<git-archive>, for similar reasons.
+
+=head1 GIT CONFIGURATION
+
+B<git-archive-all> supports the B<tar.E<lt>I<format>E<gt>.command> configuration
+variable for customized tar compression.
 
 =head1 SEE ALSO
 

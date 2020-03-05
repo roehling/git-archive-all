@@ -55,52 +55,9 @@ do
 			$self works similar to git-archive, but will also include files
 			from submodules into the archive.
 
-			Options:
-			    --format=<fmt>
-			        Format of the resulting archive: tar or zip. If the options is not
-			        given, and the output file is specified, the format is inferred
-			        from the filename if possible (e.g. writing to "foo.zip" makes the
-			        output to be in the zip format). Otherwise the output format is
-			        tar.
-
-			    -l, --list
-			        Show all available formats.
-
-			    --prefix=<prefix>/
-			        Prepend <prefix>/ to each filename in the archive.
-
-			    -o <file>, --output=<file>
-			        Write the archive to <file> instead of stdout.
-
-			    --worktree-attributes
-			        Look for attributes in .gitattributes files in the working tree as
-			        well.
-
-			    -v, --verbose
-			        Print all executed commands to stderr. If used twice, the
-			        --verbose flag will also be passed to all git invocations.
-
-			    -0, -1, -2, ... -9
-			        Choose compression strength from -0 (no compression) to -9
-			        (maximum compression). If omitted, the backend default is used.
-
-			    -r, --recursive
-			        Recursively archive files from submodules within submodules. This
-			        is the default setting.
-
-			    --no-recursive
-			        Do not recursively archive files from submodules within submodules.
-
-			    --fail-missing
-			        Do not silently ignore missing submodules, but error out instead.
-
-			    <tree-ish>
-			        The tree or commit to produce an archive for.
-
-			    <path>
-			        Without an optional path parameter, all files and subdirectories
-			        of the current working directory are included in the archive. If
-			        one or more paths are specified, only these are included.
+			This script has a built-in manual page in POD format. You can view it
+			by running
+			              pod2text $0
 
 			EOF
 			exit 0

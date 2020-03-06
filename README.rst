@@ -36,8 +36,7 @@ manual page.
 Testing
 -------
 
-**git-archive-all** comes with a small
-[Bats](https://github.com/bats-core/bats-core) test suite. You can run the test
+**git-archive-all** comes with a small Bats_ test suite. You can run the test
 suite with ``./test.bats`` if you have installed Bats, e.g. with ``sudo apt
 install bats``.
 
@@ -56,3 +55,6 @@ following alternatives instead:
 
   A Python stand-alone implementation that does not depend on git-archive and
   thus can write the whole archive in one go.
+
+
+.. _Bats: https://github.com/bats-core/bats-core

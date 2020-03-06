@@ -1,4 +1,4 @@
-#!/usr/bin/bats
+#!/usr/bin/env bats
 # vim: filetype=bash:
 GIT_ARCHIVE_ALL="$(pwd)/git-archive-all"
 

@@ -57,7 +57,7 @@ $(DESTDIR)$(bindir)/git-archive-all: git-archive-all $(DESTDIR)$(bindir)
 	install -m755 $< $(DESTDIR)$(bindir)
 
 $(DESTDIR)$(man1dir)/git-archive-all.1.gz: git-archive-all $(DESTDIR)$(man1dir)
-	pod2man -r "" -c "Git Manual" $< > $(basename $@) && gzip -9fn $(basename $@)
+	pod2man -r "" -c "Git Manual" $< | gzip -9cn > $@
 
 $(DESTDIR)$(bindir) $(DESTDIR)$(man1dir):
 	mkdir -p $@

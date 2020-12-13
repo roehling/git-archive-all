@@ -190,11 +190,9 @@ run()
 trap cleanup EXIT
 
 subtars=()
-paths=("$@")
 
-process_submodules()
+process_subtree()
 {
-
 	# This is where the magic happens. We use git-ls-tree to examine the
 	# desired tree and look for blobs of type "commit", which contain
 	# submodule commit hashes.  If that submodule path is available in the
@@ -210,71 +208,123 @@ process_submodules()
 	# depend not only on the recorded commit tree, but also on the state
 	# of the working copy.
 
-	while read -d $'\0' fmode ftype subtree_ish subpath
+	local subtree_ish="$1" subprefix="$2" sub_recursive="$3"
+	shift 3
+
+	local modulepaths=() fullprefix="${prefix}${subprefix}"
+	local included_paths include_full fmode ftype modtree_ish modpath archive
+
+	while read -d $'\0' fmode ftype modtree_ish modpath
 	do
-		subpath="$2$subpath"
-		if [[ "$ftype" == "commit" && -d "$subpath" ]]
+		if [[ "$ftype" == "commit" && -d "${subprefix}${modpath}" ]]
 		then
-			[[ "$subpath" == */ ]] || subpath="$subpath/"
-			#
-			# We have found a submodule, now we need to check if it contains any of
-			# the paths that we are supposed to include in the archive
-			#
-			included_paths=()
-			include_full=0
-			[[ ${#paths[@]} -gt 0 ]] || include_full=1
-			for path in "${paths[@]}"
-			do
-				[[ "$path" == */ ]] || path="$path/"
-				if [[ "$subpath" == "$path"* ]]
-				then
-					# the path spec is a prefix of $subpath, so we need to include
-					# the full submodule regardless of any other path spec.
-					include_full=1
-					included_paths=()
-					break
-				fi
-				if [[ "$path" == "$subpath"* ]]
-				then
-					# the path spec refers to a subtree of the submodule, thus we
-					# need to include the subtree
-					subtree="${path:${#subpath}}"
-					subtree="${subtree%/}"
-					included_paths+=("${subtree}")
-				fi
-			done
-			if [[ "$include_full" == 1 || "${#included_paths[@]}" -gt 0 ]]
+			[[ "${modpath}" == */ ]] || modpath="${modpath}/"
+			if [[ "${modpath}" == ./ ]]
 			then
-				# This submodule will contribute to our final archive, so we create
-				# a temporary tar file of everything we need.
-				archive="$workdir/${#subtars[@]}.tar"
-				if run git -C "$subpath" archive "${extra_args[@]}" -o "$archive" --prefix="${prefix}${subpath}" "$subtree_ish" "${included_paths[@]}"
+				# This is Git's way of telling us that the submodule is not initialized
+				if [[ "$fail_missing" == 0 ]]
 				then
-					# Only add this archive if the git command ran successfully. Otherwise, we skip this submodule
-					subtars+=("$archive")
-					# Recursively check for other submodules
-					[[ "$recursive" -eq 0 ]] || process_submodules "$subtree_ish" "$subpath"
-				elif [[ "$fail_missing" == 1 ]]
+					return
+				fi
+				echo>&2 "${self}: missing submodule ${subprefix@Q}"
+				exit 1
+			fi
+			modulepaths+=("${modpath}")
+			if [[ "$sub_recursive" == 1 ]]
+			then
+				#
+				# We have found a submodule, now we need to check if it contains any of
+				# the paths that we are supposed to include in the archive
+				#
+				included_paths=()
+				include_full=0
+				[[ $# -gt 0 ]] || include_full=1
+				for path in "$@"
+				do
+					[[ "$path" == */ ]] || path="$path/"
+					if [[ "$modpath" == "$path"* ]]
+					then
+						# the path spec is a prefix of $subpath, so we need to include
+						# the full submodule regardless of any other path spec.
+						include_full=1
+						included_paths=()
+						break
+					fi
+					if [[ "$path" == "$modpath"* ]]
+					then
+						# the path spec refers to a subtree of the submodule, thus we
+						# need to include the subtree
+						subtree="${path:${#modpath}}"
+						subtree="${subtree%/}"
+						included_paths+=("${subtree}")
+					fi
+				done
+				if [[ "$include_full" == 1 || "${#included_paths[@]}" -gt 0 ]]
 				then
-					echo>&2 "$self: failed to archive submodule tree $subtree_ish in '$subpath'"
-					exit 1
+					# This submodule will contribute to our final archive
+					process_subtree "$mod_treeish" "${subprefix}${modpath}" "$recursive" "${included_paths[@]}"
 				fi
 			fi
 		fi
-	done < <( git ${2:+-C "$2"} ls-tree -z -r "$1" 2>/dev/null)
+	done < <( git ${subprefix:+-C "$subprefix"} ls-tree -z "$tree_ish" 2>/dev/null)
+	if [[ "${#modulepaths[@]}" -gt 0 ]]
+	then
+		# We have submodules. Now we need to create the archive for the
+		# containing subtree, but newer Git versions choke if we also pass in
+		# paths which are in submodules only, so we need to filter them first
+		local subpaths=() skip mod
+		for path in "$@"
+		do
+			[[ "$path" == */ ]] || path="$path/"
+			skip=0
+			for mod in "${modulepaths[@]}"
+			do
+				if [[ "$path" == "$mod"* ]]
+				then
+					skip=1
+					break
+				fi
+			done
+			[[ "$skip" == 1 ]] || subpaths+=("${path%/}")
+		done
+		if [[ $# -eq 0 || ${#subpaths[@]} -gt 0 ]]
+		then
+			archive="$workdir/${#subtars[@]}.tar"
+			run git ${subprefix:+-C "$subprefix"} archive "${extra_args[@]}" -o "$archive" ${fullprefix:+--prefix="${fullprefix}"} "$tree_ish" "${subpaths[@]}"
+			subtars+=("$archive")
+		fi
+		if [[ -z "$subprefix" && ${#subtars[@]} -eq 0 && $# -gt 0 ]]
+		then
+			# If we end up here, the user gave us a pathspec, but we created no archives
+			# This is probably because we skipped the submodule where that pathspec matched
+			# Thus, we create an empty subtar to prevent the fallback from triggering an
+			# "pathspec did not match any files" error
+			run touch "$workdir/0.tar"
+			subtars+=("$workdir/0.tar")
+		fi
+	else
+		# No submodules found. If this is not the root tree, we call
+		# git-archive to create a snapshot of this subtree
+		if [[ -n "$subprefix" ]]
+		then
+				archive="$workdir/${#subtars[@]}.tar"
+				run git -C "$subprefix" archive "${extra_args[@]}" -o "$archive" --prefix="${fullprefix}" "$tree_ish" "$@"
+				subtars+=("$archive")
+		fi
+	fi
 }
 
-process_submodules "$tree_ish"
+process_subtree "$tree_ish" "" 1 "$@"
 
 if [[ "${#subtars[@]}" -gt 0 ]]
 then
 	# If there are any submodules to be included, we first build the
 	# superproject archive, concatenate the submodule archives to it, and
 	# finally compress the combined archive.
-	run git archive "${extra_args[@]}" -o "$workdir/m.tar" ${prefix:+--prefix="${prefix}"} "$tree_ish" "$@"
+	run touch "$workdir/m.tar"
 	for subtar in "${subtars[@]}"
 	do
-		run tar -Af "$workdir/m.tar" "$subtar"
+		[[ ! -s "$subtar" ]] || run tar -Af "$workdir/m.tar" "$subtar"
 		rm -f "$subtar"
 	done
 	if [[ "${outfile:--}" = - ]]
@@ -326,7 +376,7 @@ then
 else
 	# If there are no submodules, fall back to the regular git archive command
 	# for maximum compatibility
-	run git archive "${extra_args[@]}" ${format:+--format="$format"} ${outfile:+-o "$outfile"} ${prefix:+--prefix="${prefix}"} $compress_flag "$tree_ish" "${paths[@]}"
+	run git archive "${extra_args[@]}" ${format:+--format="$format"} ${outfile:+-o "$outfile"} ${prefix:+--prefix="${prefix}"} $compress_flag "$tree_ish" "$@"
 fi
 exit $?
 

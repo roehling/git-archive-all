@@ -83,7 +83,7 @@ add_submodule()
 run_git_archive_all()
 {
 	echo "+++" "git-archive-all" "$@"
-	"$GIT_ARCHIVE_ALL" "$@"
+	"$GIT_ARCHIVE_ALL" -v "$@"
 }
 
 setup()
@@ -215,7 +215,7 @@ check_tar_content()
 	check_tar_content test.tar "${tar_files[@]}"
 }
 
-@test "simple repo, archive with unorthodox prefix" {
+@test "simple repo, archive with newline in prefix" {
 	create_repo alpha
 	cd alpha
 	run_git_archive_all -o test.tar --prefix=pre$'\n'fix/
@@ -302,7 +302,7 @@ check_tar_content()
 	check_tar_content test.tar "${tar_files[@]}" 
 }
 
-@test "repo with submodule, archive with unorthodox prefix" {
+@test "repo with submodule, archive with newline in prefix" {
 	create_repo alpha
 	create_repo beta
 	add_submodule alpha beta
@@ -314,7 +314,7 @@ check_tar_content()
 	check_tar_content test.tar "${tar_files[@]}"
 }
 
-@test "repo with submodule, archive with unorthodox prefix and path spec" {
+@test "repo with submodule, archive with newline in prefix and path spec" {
 	create_repo alpha
 	create_repo beta
 	add_submodule alpha beta
@@ -461,7 +461,7 @@ check_tar_content()
 	check_tar_content test.tar "${tar_files[@]}"
 }
 
-@test "repo with recursive submodules, archive with unorthodox prefix" {
+@test "repo with recursive submodules, archive with newline in prefix" {
 	create_repo alpha
 	create_repo beta
 	create_repo gamma

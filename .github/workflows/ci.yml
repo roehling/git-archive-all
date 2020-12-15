@@ -14,8 +14,14 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get install bash bats git
+      - name: Show installed versions
+        run: |
           git --version
           bats --version
+      - name: Configure Git for test suite
+        run: |
+          git config --global user.name "Timo Röhling"
+          git config --global user.email "roehling@github.example.com"
       - name: Run BATS test suite
         run: |
           ./test.bats

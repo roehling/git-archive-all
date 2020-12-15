@@ -205,13 +205,13 @@ check_tar_content()
 	! run_git_archive_all -o test.tar HEAD beta
 }
 
-@test "simple repo, with file names that have weird characters" {
-	create_repo alpha "with space.txt" "with"$'\n'"newline.txt" "with"'$'"dollar.txt" "ÄÖÜäöü.txt"
+@test "simple repo, file names with non-ASCII characters" {
+	create_repo alpha "with space.txt" "with"$'\n'"newline.txt" "with"'$'"dollar.txt" "ÄÖÜäöü.txt" "日本人.txt"
 	cd alpha
 	run_git_archive_all -o test.tar
 	local tar_files
 	repo_files tar_files alpha
-	tar_files+=("with space.txt" "with"$'\n'"newline.txt" "with"'$'"dollar.txt" "ÄÖÜäöü.txt")
+	tar_files+=("with space.txt" "with"$'\n'"newline.txt" "with"'$'"dollar.txt" "ÄÖÜäöü.txt" "日本人.txt")
 	check_tar_content test.tar "${tar_files[@]}"
 }
 
@@ -289,8 +289,8 @@ check_tar_content()
 	check_tar_content test.tar "${tar_files[@]}"
 }
 
-@test "repo with submodule, with file names that have weird characters" {
-	create_repo alpha "with space.txt" "with"$'\n'"newline.txt" "with"'$'"dollar.txt" "ÄÖÜäöü.txt"
+@test "repo with submodule, file names with non-ASCII characters" {
+	create_repo alpha "with space.txt" "with"$'\n'"newline.txt" "with"'$'"dollar.txt" "ÄÖÜäöü.txt" "日本人.txt"
 	create_repo beta
 	add_submodule alpha beta "space umlaut ÄÖÜäöü"
 	cd alpha
@@ -298,7 +298,7 @@ check_tar_content()
 	local tar_files=()
 	repo_files tar_files+ alpha
 	repo_files tar_files+ beta "space umlaut ÄÖÜäöü"/
-	tar_files+=("with space.txt" "with"$'\n'"newline.txt" "with"'$'"dollar.txt" "ÄÖÜäöü.txt" .gitmodules)
+	tar_files+=("with space.txt" "with"$'\n'"newline.txt" "with"'$'"dollar.txt" "ÄÖÜäöü.txt" "日本人.txt" .gitmodules)
 	check_tar_content test.tar "${tar_files[@]}" 
 }
 
@@ -413,7 +413,7 @@ check_tar_content()
 	check_tar_content test.tar "${tar_files[@]}"
 }
 
-@test "repo with recursive submodules, non-recursive archive with excluded path spec" {
+@test "repo with recursive submodules, non-recursive archive, path spec is not in result" {
 	create_repo alpha
 	create_repo beta
 	create_repo gamma

@@ -207,7 +207,6 @@ process_subtree()
 	# This is somewhat unfortunate, as it makes the output of git-archive-all
 	# depend not only on the recorded commit tree, but also on the state
 	# of the working copy.
-
 	local subtree_ish="$1" subprefix="$2" sub_recursive="$3"
 	shift 3
 
@@ -262,11 +261,11 @@ process_subtree()
 				if [[ "$include_full" == 1 || "${#included_paths[@]}" -gt 0 ]]
 				then
 					# This submodule will contribute to our final archive.
-					process_subtree "$mod_treeish" "${subprefix}${modpath}" "$recursive" "${included_paths[@]}"
+					process_subtree "$modtree_ish" "${subprefix}${modpath}" "$recursive" "${included_paths[@]}"
 				fi
 			fi
 		fi
-	done < <( git ${subprefix:+-C "$subprefix"} ls-tree -z "$tree_ish" 2>/dev/null)
+	done < <( git ${subprefix:+-C "$subprefix"} ls-tree -z "$subtree_ish" 2>/dev/null)
 	if [[ "${#modulepaths[@]}" -gt 0 ]]
 	then
 		# We have submodules. Now we need to create the archive for the
@@ -290,7 +289,7 @@ process_subtree()
 		if [[ $# -eq 0 || ${#subpaths[@]} -gt 0 ]]
 		then
 			archive="$workdir/${#subtars[@]}.tar"
-			run git ${subprefix:+-C "$subprefix"} archive "${extra_args[@]}" -o "$archive" ${fullprefix:+--prefix="${fullprefix}"} "$tree_ish" "${subpaths[@]}"
+			run git ${subprefix:+-C "$subprefix"} archive "${extra_args[@]}" -o "$archive" ${fullprefix:+--prefix="${fullprefix}"} "$subtree_ish" "${subpaths[@]}"
 			subtars+=("$archive")
 		fi
 		if [[ -z "$subprefix" && ${#subtars[@]} -eq 0 && $# -gt 0 ]]
@@ -308,7 +307,14 @@ process_subtree()
 		if [[ -n "$subprefix" ]]
 		then
 				archive="$workdir/${#subtars[@]}.tar"
-				run git -C "$subprefix" archive "${extra_args[@]}" -o "$archive" --prefix="${fullprefix}" "$tree_ish" "$@"
+				if ! run git -C "$subprefix" archive "${extra_args[@]}" -o "$archive" --prefix="${fullprefix}" "$subtree_ish" "$@"
+				then
+					if [[ "$fail_missing" == 1 ]]
+					then
+						echo>&2 "${self}: missing submodule ${subprefix@Q}"
+						exit 1
+					fi
+				fi
 				subtars+=("$archive")
 		fi
 	fi

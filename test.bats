@@ -183,7 +183,7 @@ check_tar_content()
 @test "simple repo, archive with prefix" {
 	create_repo alpha
 	cd alpha
-	run_git_archive_all -o test.tar --prefix=prefix/
+	run_git_archive_all -o test.tar --prefix=prefix/ $(git rev-parse HEAD)
 	local tar_files
 	repo_files tar_files alpha prefix/
 	check_tar_content test.tar "${tar_files[@]}"
@@ -192,7 +192,7 @@ check_tar_content()
 @test "simple repo, archive with prefix and path spec" {
 	create_repo alpha
 	cd alpha
-	run_git_archive_all -o test.tar --prefix=prefix/ HEAD alpha_folder/
+	run_git_archive_all -o test.tar --prefix=prefix/ $(git rev-parse HEAD) alpha_folder/
 	local tar_files
 	repo_files tar_files alpha prefix/
 	filter_array tar_files prefix/alpha_folder/
@@ -202,7 +202,7 @@ check_tar_content()
 @test "simple repo, fail on missing path spec" {
 	create_repo alpha
 	cd alpha
-	! run_git_archive_all -o test.tar HEAD beta
+	! run_git_archive_all -o test.tar $(git rev-parse HEAD) beta
 }
 
 @test "simple repo, file names with non-ASCII characters" {
@@ -218,7 +218,7 @@ check_tar_content()
 @test "simple repo, archive with newline in prefix" {
 	create_repo alpha
 	cd alpha
-	run_git_archive_all -o test.tar --prefix=pre$'\n'fix/
+	run_git_archive_all -o test.tar --prefix=pre$'\n'fix/ $(git rev-parse HEAD)
 	local tar_files
 	repo_files tar_files alpha pre$'\n'fix/
 	check_tar_content test.tar "${tar_files[@]}"
@@ -229,7 +229,7 @@ check_tar_content()
 	create_repo beta
 	add_submodule alpha beta
 	cd alpha
-	run_git_archive_all -o test.tar
+	run_git_archive_all -o test.tar $(git rev-parse HEAD)
 	local tar_files=(.gitmodules)
 	repo_files tar_files+ alpha
 	repo_files tar_files+ beta beta/
@@ -241,7 +241,7 @@ check_tar_content()
 	create_repo beta
 	add_submodule alpha beta
 	cd alpha
-	run_git_archive_all -o test.tar.gz
+	run_git_archive_all -o test.tar.gz $(git rev-parse HEAD)
 	local tar_files=(.gitmodules)
 	repo_files tar_files+ alpha
 	repo_files tar_files+ beta beta/
@@ -254,7 +254,7 @@ check_tar_content()
 	create_repo beta
 	add_submodule alpha beta
 	cd alpha
-	run_git_archive_all -o test.tar --prefix=prefix/
+	run_git_archive_all -o test.tar --prefix=prefix/ $(git rev-parse HEAD)
 	local tar_files=(prefix/.gitmodules)
 	repo_files tar_files+ alpha prefix/
 	repo_files tar_files+ beta prefix/beta/
@@ -266,7 +266,7 @@ check_tar_content()
 	create_repo beta
 	add_submodule alpha beta
 	cd alpha
-	run_git_archive_all -o test.tar --prefix=prefix/ HEAD alpha_folder
+	run_git_archive_all -o test.tar --prefix=prefix/ $(git rev-parse HEAD) alpha_folder
 	local tar_files
 	repo_files tar_files alpha prefix/
 	filter_array tar_files prefix/alpha_folder/
@@ -279,7 +279,7 @@ check_tar_content()
 	create_repo beta
 	add_submodule alpha beta
 	cd alpha
-	run_git_archive_all -o test.tar HEAD beta/beta_folder
+	run_git_archive_all -o test.tar $(git rev-parse HEAD) beta/beta_folder
 	local tar_files
 	repo_files tar_files beta beta/
 	filter_array tar_files beta/beta_folder/
@@ -294,7 +294,7 @@ check_tar_content()
 	create_repo beta
 	add_submodule alpha beta "space umlaut ÄÖÜäöü"
 	cd alpha
-	run_git_archive_all -o test.tar
+	run_git_archive_all -o test.tar $(git rev-parse HEAD)
 	local tar_files=()
 	repo_files tar_files+ alpha
 	repo_files tar_files+ beta "space umlaut ÄÖÜäöü"/
@@ -307,7 +307,7 @@ check_tar_content()
 	create_repo beta
 	add_submodule alpha beta
 	cd alpha
-	run_git_archive_all -o test.tar --prefix=pre$'\n'fix/
+	run_git_archive_all -o test.tar --prefix=pre$'\n'fix/ $(git rev-parse HEAD)
 	local tar_files=(pre$'\n'fix/.gitmodules)
 	repo_files tar_files+ alpha pre$'\n'fix/
 	repo_files tar_files+ beta pre$'\n'fix/beta/
@@ -319,7 +319,7 @@ check_tar_content()
 	create_repo beta
 	add_submodule alpha beta
 	cd alpha
-	run_git_archive_all -o test.tar --prefix=pre$'\n'fix/ HEAD beta/beta_folder
+	run_git_archive_all -o test.tar --prefix=pre$'\n'fix/ $(git rev-parse HEAD) beta/beta_folder
 	local tar_files
 	repo_files tar_files beta pre$'\n'fix/beta/
 	filter_array tar_files pre$'\n'fix/beta/beta_folder/
@@ -359,7 +359,7 @@ check_tar_content()
 	add_submodule alpha beta
 	cd alpha
 	git submodule update --init --recursive
-	run_git_archive_all -o test.tar --fail-missing
+	run_git_archive_all -o test.tar --fail-missing $(git rev-parse HEAD)
 	local tar_files=(.gitmodules beta/.gitmodules)
 	repo_files tar_files+ alpha
 	repo_files tar_files+ beta beta/
@@ -375,7 +375,7 @@ check_tar_content()
 	add_submodule alpha beta
 	cd alpha
 	git submodule update --init --recursive
-	run_git_archive_all -o test.tar --fail-missing --no-recursive
+	run_git_archive_all -o test.tar --fail-missing --no-recursive $(git rev-parse HEAD)
 	local tar_files=(.gitmodules beta/.gitmodules)
 	repo_files tar_files+ alpha
 	repo_files tar_files+ beta beta/
@@ -389,7 +389,7 @@ check_tar_content()
 	add_submodule beta gamma
 	add_submodule alpha beta
 	cd alpha
-	! run_git_archive_all -o test.tar --fail-missing
+	! run_git_archive_all -o test.tar --fail-missing $(git rev-parse HEAD)
 	run_git_archive_all -o test.tar
 	local tar_files=(.gitmodules beta/.gitmodules)
 	repo_files tar_files+ alpha
@@ -405,7 +405,7 @@ check_tar_content()
 	add_submodule alpha beta
 	cd alpha
 	git submodule update --init --recursive
-	run_git_archive_all -o test.tar --fail-missing --prefix=prefix/
+	run_git_archive_all -o test.tar --fail-missing --prefix=prefix/ $(git rev-parse HEAD)
 	local tar_files=(prefix/.gitmodules prefix/beta/.gitmodules)
 	repo_files tar_files+ alpha prefix/
 	repo_files tar_files+ beta prefix/beta/
@@ -421,7 +421,7 @@ check_tar_content()
 	add_submodule alpha beta
 	cd alpha
 	git submodule update --init --recursive
-	run_git_archive_all -o test.tar --fail-missing --no-recursive HEAD beta/gamma/gamma_folder
+	run_git_archive_all -o test.tar --fail-missing --no-recursive $(git rev-parse HEAD) beta/gamma/gamma_folder
 	local tar_files=()
 	check_tar_content test.tar "${tar_files[@]}"
 }
@@ -434,12 +434,12 @@ check_tar_content()
 	add_submodule alpha beta
 	cd alpha
 	git submodule update --init --recursive
-	run_git_archive_all -o test.tar --fail-missing --prefix=prefix/ HEAD beta/gamma/gamma_folder
+	run_git_archive_all -o test.tar --fail-missing --prefix=prefix/ $(git rev-parse HEAD) beta/gamma/gamma_folder
 	local tar_files
 	repo_files tar_files gamma prefix/beta/gamma/
 	filter_array tar_files prefix/beta/gamma/gamma_folder/
 	check_tar_content test.tar "${tar_files[@]}"
-	run_git_archive_all -o test.tar --fail-missing --prefix=prefix/ HEAD beta/gamma
+	run_git_archive_all -o test.tar --fail-missing --prefix=prefix/ $(git rev-parse HEAD) beta/gamma
 	repo_files tar_files gamma prefix/beta/gamma/
 	check_tar_content test.tar "${tar_files[@]}"
 }
@@ -451,12 +451,12 @@ check_tar_content()
 	add_submodule alpha beta
 	cd alpha
 	git submodule update --init --recursive
-	run_git_archive_all -o test.tar --fail-missing HEAD beta/gamma/gamma_folder
+	run_git_archive_all -o test.tar --fail-missing $(git rev-parse HEAD) beta/gamma/gamma_folder
 	local tar_files
 	repo_files tar_files gamma beta/gamma/
 	filter_array tar_files beta/gamma/gamma_folder/
 	check_tar_content test.tar "${tar_files[@]}"
-	run_git_archive_all -o test.tar --fail-missing HEAD beta/gamma
+	run_git_archive_all -o test.tar --fail-missing $(git rev-parse HEAD) beta/gamma
 	repo_files tar_files gamma beta/gamma/
 	check_tar_content test.tar "${tar_files[@]}"
 }
@@ -469,7 +469,7 @@ check_tar_content()
 	add_submodule alpha beta
 	cd alpha
 	git submodule update --init --recursive
-	run_git_archive_all -o test.tar --fail-missing --prefix=pre$'\n'fix/
+	run_git_archive_all -o test.tar --fail-missing --prefix=pre$'\n'fix/ $(git rev-parse HEAD)
 	local tar_files=(pre$'\n'fix/.gitmodules pre$'\n'fix/beta/.gitmodules)
 	repo_files tar_files+ alpha pre$'\n'fix/
 	repo_files tar_files+ beta pre$'\n'fix/beta/

@@ -75,6 +75,7 @@ add_submodule()
 	local submodule="$2"
 	local path="${3:-$submodule}"
 	echo "+++ adding submodule $submodule to repo $repo"
+	mkdir -p "$repo/$(dirname "$path")"
 	git -C "$repo" submodule add ../"$submodule" "$path"
 	git -C "$repo" add .
 	git -C "$repo" commit -m "add submodule"
@@ -236,6 +237,18 @@ check_tar_content()
 	check_tar_content test.tar "${tar_files[@]}"
 }
 
+@test "repo with submodule, submodule in subfolder" {
+	create_repo alpha
+	create_repo beta
+	add_submodule alpha beta subdir/beta
+	cd alpha
+	run_git_archive_all -o test.tar $(git rev-parse HEAD)
+	local tar_files=(.gitmodules)
+	repo_files tar_files+ alpha
+	repo_files tar_files+ beta subdir/beta/
+	check_tar_content test.tar "${tar_files[@]}"
+}
+
 @test "repo with submodule, gzipped tar archive" {
 	create_repo alpha
 	create_repo beta
@@ -364,6 +377,22 @@ check_tar_content()
 	repo_files tar_files+ alpha
 	repo_files tar_files+ beta beta/
 	repo_files tar_files+ gamma beta/gamma/
+	check_tar_content test.tar "${tar_files[@]}"
+}
+
+@test "repo with recursive submodules, submodules in subfolders" {
+	create_repo alpha
+	create_repo beta
+	create_repo gamma
+	add_submodule beta gamma other_subdir/gamma
+	add_submodule alpha beta subdir/beta
+	cd alpha
+	git submodule update --init --recursive
+	run_git_archive_all -o test.tar --fail-missing $(git rev-parse HEAD)
+	local tar_files=(.gitmodules subdir/beta/.gitmodules)
+	repo_files tar_files+ alpha
+	repo_files tar_files+ beta subdir/beta/
+	repo_files tar_files+ gamma subdir/beta/other_subdir/gamma/
 	check_tar_content test.tar "${tar_files[@]}"
 }
 

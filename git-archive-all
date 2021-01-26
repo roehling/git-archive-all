@@ -265,7 +265,7 @@ process_subtree()
 				fi
 			fi
 		fi
-	done < <( git ${subprefix:+-C "$subprefix"} ls-tree -z "$subtree_ish" 2>/dev/null)
+	done < <( git ${subprefix:+-C "$subprefix"} ls-tree -r -z "$subtree_ish" 2>/dev/null)
 	if [[ "${#modulepaths[@]}" -gt 0 ]]
 	then
 		# We have submodules. Now we need to create the archive for the

@@ -221,7 +221,7 @@ process_subtree()
 			[[ "${modpath}" == */ ]] || modpath="${modpath}/"
 			if [[ "${modpath}" == ./ ]]
 			then
-				# This is Git's way of telling us that the submodule is not initialized
+				# This is Git's way of telling us that the submodule is not initialized.
 				if [[ "$fail_missing" == 0 ]]
 				then
 					return
@@ -234,7 +234,7 @@ process_subtree()
 			then
 				#
 				# We have found a submodule, now we need to check if it contains any of
-				# the paths that we are supposed to include in the archive
+				# the paths that we are supposed to include in the archive.
 				#
 				included_paths=()
 				include_full=0
@@ -253,7 +253,7 @@ process_subtree()
 					if [[ "$path" == "$modpath"* ]]
 					then
 						# the path spec refers to a subtree of the submodule, thus we
-						# need to include the subtree
+						# need to include the subtree.
 						subtree="${path:${#modpath}}"
 						subtree="${subtree%/}"
 						included_paths+=("${subtree}")
@@ -261,7 +261,7 @@ process_subtree()
 				done
 				if [[ "$include_full" == 1 || "${#included_paths[@]}" -gt 0 ]]
 				then
-					# This submodule will contribute to our final archive
+					# This submodule will contribute to our final archive.
 					process_subtree "$mod_treeish" "${subprefix}${modpath}" "$recursive" "${included_paths[@]}"
 				fi
 			fi
@@ -271,7 +271,7 @@ process_subtree()
 	then
 		# We have submodules. Now we need to create the archive for the
 		# containing subtree, but newer Git versions choke if we also pass in
-		# paths which are in submodules only, so we need to filter them first
+		# paths which are in submodules only, so we need to filter them first.
 		local subpaths=() skip mod
 		for path in "$@"
 		do
@@ -295,16 +295,16 @@ process_subtree()
 		fi
 		if [[ -z "$subprefix" && ${#subtars[@]} -eq 0 && $# -gt 0 ]]
 		then
-			# If we end up here, the user gave us a pathspec, but we created no archives
-			# This is probably because we skipped the submodule where that pathspec matched
+			# If we end up here, the user gave us a pathspec, but we created no archives.
+			# This is probably because we skipped the submodule where that pathspec matched.
 			# Thus, we create an empty subtar to prevent the fallback from triggering an
-			# "pathspec did not match any files" error
+			# "pathspec did not match any files" error.
 			run touch "$workdir/0.tar"
 			subtars+=("$workdir/0.tar")
 		fi
 	else
 		# No submodules found. If this is not the root tree, we call
-		# git-archive to create a snapshot of this subtree
+		# git-archive to create a snapshot of this subtree.
 		if [[ -n "$subprefix" ]]
 		then
 				archive="$workdir/${#subtars[@]}.tar"

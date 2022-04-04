@@ -261,7 +261,7 @@ process_subtree()
 				if [[ "$include_full" == 1 || "${#included_paths[@]}" -gt 0 ]]
 				then
 					# This submodule will contribute to our final archive.
-					process_subtree "$modtree_ish" "${subprefix}${modpath}" "$recursive" "${included_paths[@]}"
+					process_subtree "$modtree_ish" "${subprefix}${modpath}" "$recursive" ${included_paths:+"${included_paths[@]}"}
 				fi
 			fi
 		fi
@@ -289,7 +289,7 @@ process_subtree()
 		if [[ $# -eq 0 || ${#subpaths[@]} -gt 0 ]]
 		then
 			archive="$workdir/${#subtars[@]}.tar"
-			run git ${subprefix:+-C "$subprefix"} archive "${extra_args[@]}" -o "$archive" ${fullprefix:+--prefix="${fullprefix}"} "$subtree_ish" "${subpaths[@]}"
+			run git ${subprefix:+-C "$subprefix"} archive ${extra_args:+"${extra_args[@]}"} -o "$archive" ${fullprefix:+--prefix="${fullprefix}"} "$subtree_ish" ${subpaths:+"${subpaths[@]}"}
 			subtars+=("$archive")
 		fi
 		if [[ -z "$subprefix" && ${#subtars[@]} -eq 0 && $# -gt 0 ]]
@@ -307,7 +307,7 @@ process_subtree()
 		if [[ -n "$subprefix" ]]
 		then
 				archive="$workdir/${#subtars[@]}.tar"
-				if ! run git -C "$subprefix" archive "${extra_args[@]}" -o "$archive" --prefix="${fullprefix}" "$subtree_ish" "$@"
+				if ! run git -C "$subprefix" archive ${extra_args:+"${extra_args[@]}"} -o "$archive" --prefix="${fullprefix}" "$subtree_ish" "$@"
 				then
 					if [[ "$fail_missing" == 1 ]]
 					then
@@ -382,7 +382,7 @@ then
 else
 	# If there are no submodules, fall back to the regular git archive command
 	# for maximum compatibility
-	run git archive "${extra_args[@]}" ${format:+--format="$format"} ${outfile:+-o "$outfile"} ${prefix:+--prefix="${prefix}"} $compress_flag "$tree_ish" "$@"
+	run git archive ${extra_args:+"${extra_args[@]}"} ${format:+--format="$format"} ${outfile:+-o "$outfile"} ${prefix:+--prefix="${prefix}"} $compress_flag "$tree_ish" "$@"
 fi
 exit $?
 

@@ -79,7 +79,7 @@ do
 			shift
 			;;
 		--worktree-attributes)
-			let ++worktree_attributes
+			worktree_attributes=1
 			shift
 			;;
 		-r|--recursive)

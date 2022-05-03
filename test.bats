@@ -225,6 +225,18 @@ check_tar_content()
 	check_tar_content test.tar "${tar_files[@]}"
 }
 
+@test "simple repo, add untracked files" {
+	create_repo alpha
+	cd alpha
+	mkdir subdir
+	touch subdir/untracked1 subdir/untracked2
+	run_git_archive_all -o test.tar --prefix=prefix/ --add-file=subdir/untracked1 --add-file=subdir/untracked2 $(git rev-parse HEAD)
+	local tar_files
+	repo_files tar_files alpha prefix/
+	tar_files+=("prefix/untracked1" "prefix/untracked2")
+	check_tar_content test.tar "${tar_files[@]}"
+}
+
 @test "repo with submodule" {
 	create_repo alpha
 	create_repo beta
@@ -362,6 +374,21 @@ check_tar_content()
 	run_git_archive_all -o test.tar --fail-missing HEAD
 	tar_files+=(beta/new_file.txt yet_another_file.txt)
 	check_tar_content test.tar "${tar_files[@]}" 
+}
+
+@test "repo with submodule, add untracked files" {
+	create_repo alpha
+	create_repo beta
+	add_submodule alpha beta
+	cd alpha
+	touch untracked1
+	touch beta/untracked2
+	run_git_archive_all -o test.tar --prefix=prefix/ --add-file=untracked1 --add-file=beta/untracked2 $(git rev-parse HEAD)
+	local tar_files=("prefix/.gitmodules")
+	repo_files tar_files+ alpha prefix/
+	repo_files tar_files+ beta prefix/beta/
+	tar_files+=("prefix/untracked1" "prefix/untracked2")
+	check_tar_content test.tar "${tar_files[@]}"
 }
 
 @test "repo with recursive submodules" {

@@ -36,7 +36,8 @@ recursive=1
 fail_missing=0
 worktree_attributes=0
 compress_flag=
-options="$(getopt -n "$self" -o hlrv0123456789o: -l help,list,version,verbose,worktree-attributes,recursive,no-recursive,fail-missing,format:,output:,prefix: -- "$@")"
+add_files=()
+options="$(getopt -n "$self" -o hlrv0123456789o: -l help,list,version,verbose,worktree-attributes,add-file:,recursive,no-recursive,fail-missing,format:,output:,prefix: -- "$@")"
 eval "set -- $options"
 
 while [[ "$#" -gt 0 ]]
@@ -50,7 +51,7 @@ do
 			          $whsp [-o <file> | --output=<file>] [--worktree-attributes]
 			          $whsp [-v | --verbose] [--recursive | --no-recursive]
 			          $whsp [--fail-missing] [-0 | -1 | -2 | ... | -9 ]
-			          $whsp <tree-ish> [<path>...]
+			          $whsp [--add-file=<file> [...]] <tree-ish> [<path>...]
 
 			$self works similar to git-archive, but will also include files
 			from submodules into the archive.
@@ -81,6 +82,10 @@ do
 		--worktree-attributes)
 			worktree_attributes=1
 			shift
+			;;
+		--add-file)
+			add_files+=("--add-file=$2")
+			shift 2
 			;;
 		-r|--recursive)
 			recursive=1
@@ -210,7 +215,7 @@ process_subtree()
 	local subtree_ish="$1" subprefix="$2" sub_recursive="$3"
 	shift 3
 
-	local modulepaths=() fullprefix="${prefix}${subprefix}"
+	local modulepaths=() fullprefix="${prefix}${subprefix}" extra_files=()
 	local included_paths include_full fmode ftype modtree_ish modpath archive
 
 	while read -d $'\0' fmode ftype modtree_ish modpath
@@ -289,7 +294,9 @@ process_subtree()
 		if [[ $# -eq 0 || ${#subpaths[@]} -gt 0 ]]
 		then
 			archive="$workdir/${#subtars[@]}.tar"
-			run git ${subprefix:+-C "$subprefix"} archive ${extra_args:+"${extra_args[@]}"} -o "$archive" ${fullprefix:+--prefix="${fullprefix}"} "$subtree_ish" ${subpaths:+"${subpaths[@]}"}
+			# Inject --add-file=<file> options into toplevel git-archive invocation
+			[[ -n "$subprefix" ]] || extra_files=("${add_files[@]}")
+			run git ${subprefix:+-C "$subprefix"} archive ${extra_args:+"${extra_args[@]}"} -o "$archive" ${fullprefix:+--prefix="${fullprefix}"} ${extra_files:+"${extra_files[@]}"} "$subtree_ish" ${subpaths:+"${subpaths[@]}"}
 			subtars+=("$archive")
 		fi
 		if [[ -z "$subprefix" && ${#subtars[@]} -eq 0 && $# -gt 0 ]]
@@ -382,7 +389,12 @@ then
 else
 	# If there are no submodules, fall back to the regular git archive command
 	# for maximum compatibility
-	run git archive ${extra_args:+"${extra_args[@]}"} ${format:+--format="$format"} ${outfile:+-o "$outfile"} ${prefix:+--prefix="${prefix}"} $compress_flag "$tree_ish" "$@"
+	run git archive ${extra_args:+"${extra_args[@]}"} \
+	                ${format:+--format="$format"} \
+	                ${outfile:+-o "$outfile"} \
+	                ${prefix:+--prefix="${prefix}"} \
+	                ${add_files:+"${add_files[@]}"} \
+	                $compress_flag "$tree_ish" "$@"
 fi
 exit $?
 
@@ -399,7 +411,7 @@ B<git-archive-all> [B<--format=><I<fmt>>] [B<--list>] [B<--prefix=><I<prefix>>]
                 [B<-o> <I<file>> | B<--output=><I<file>>] [B<--worktree-attributes>]
                 [B<-v> | B<--verbose>] [B<--recursive> | B<--no-recursive>]
                 [B<--fail-missing>] [B<-0> | B<-1> | B<-2> | ... | B<-9>]
-                <I<tree-ish>> [<I<path>> ...]
+                [B<--add-file=><I<file>>] <I<tree-ish>> [<I<path>> ...]
 
 =head1 DESCRIPTION
 
@@ -466,6 +478,12 @@ Do not recursively archive files from submodules within submodules.
 
 Make B<git-archive-all> fail if a submodule is missing from the working
 copy. See L<RESTRICTIONS> for a more in-depth explanation.
+
+=item B<--add-file=><I<file>>
+
+Add a non-tracked file to the archive. Can be repeated to add multiple files.
+The path of the file in the archive is built by concatenating the
+value for B<--prefix> (if any) and the basename of <I<file>>.
 
 =item <I<tree-ish>>
 

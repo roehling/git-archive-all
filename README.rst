@@ -11,7 +11,7 @@ Synopsis
                         [-o <file> | --output=<file>] [--worktree-attributes]
                         [-v | --verbose] [--recursive | --no-recursive]
                         [--fail-missing] [-0 | -1 | -2 | ... | -9 ]
-                        <tree-ish> [<path>...]
+                        [--add-file=<file> ...] <tree-ish> [<path>...]
 
 **git archive-all** works similar to ``git archive``, but will also include
 files from submodules into the archive. This is not the only implementation of
@@ -20,6 +20,12 @@ It uses the same command line arguments, and in the absense of submodules, it
 will behave identically. Basically, you can use it for all archiving purposes
 and need not think about the technicalities of submodules.
 
+Requirements
+------------
+
+**git-archive-all** requires GNU getopt and GNU tar. On MacOS, you may need to
+install ``gnu-getopt`` and ``gnu-tar`` with Homebrew, and make sure that your
+`PATH` is setup to prefer the Homebrew versions over the stock ones.
 
 Installation
 ------------

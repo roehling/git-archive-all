@@ -76,7 +76,7 @@ add_submodule()
 	local path="${3:-$submodule}"
 	echo "+++ adding submodule $submodule to repo $repo"
 	mkdir -p "$repo/$(dirname "$path")"
-	git -C "$repo" submodule add ../"$submodule" "$path"
+	git -c protocol.file.allow=always -C "$repo" submodule add ../"$submodule" "$path"
 	git -C "$repo" add .
 	git -C "$repo" commit -m "add submodule"
 }
@@ -398,7 +398,7 @@ check_tar_content()
 	add_submodule beta gamma
 	add_submodule alpha beta
 	cd alpha
-	git submodule update --init --recursive
+	git -c protocol.file.allow=always submodule update --init --recursive
 	run_git_archive_all -o test.tar --fail-missing $(git rev-parse HEAD)
 	local tar_files=(.gitmodules beta/.gitmodules)
 	repo_files tar_files+ alpha
@@ -414,7 +414,7 @@ check_tar_content()
 	add_submodule beta gamma other_subdir/gamma
 	add_submodule alpha beta subdir/beta
 	cd alpha
-	git submodule update --init --recursive
+	git -c protocol.file.allow=always submodule update --init --recursive
 	run_git_archive_all -o test.tar --fail-missing $(git rev-parse HEAD)
 	local tar_files=(.gitmodules subdir/beta/.gitmodules)
 	repo_files tar_files+ alpha
@@ -430,7 +430,7 @@ check_tar_content()
 	add_submodule beta gamma
 	add_submodule alpha beta
 	cd alpha
-	git submodule update --init --recursive
+	git -c protocol.file.allow=always submodule update --init --recursive
 	run_git_archive_all -o test.tar --fail-missing --no-recursive $(git rev-parse HEAD)
 	local tar_files=(.gitmodules beta/.gitmodules)
 	repo_files tar_files+ alpha
@@ -460,7 +460,7 @@ check_tar_content()
 	add_submodule beta gamma
 	add_submodule alpha beta
 	cd alpha
-	git submodule update --init --recursive
+	git -c protocol.file.allow=always submodule update --init --recursive
 	run_git_archive_all -o test.tar --fail-missing --prefix=prefix/ $(git rev-parse HEAD)
 	local tar_files=(prefix/.gitmodules prefix/beta/.gitmodules)
 	repo_files tar_files+ alpha prefix/
@@ -476,7 +476,7 @@ check_tar_content()
 	add_submodule beta gamma
 	add_submodule alpha beta
 	cd alpha
-	git submodule update --init --recursive
+	git -c protocol.file.allow=always submodule update --init --recursive
 	run_git_archive_all -o test.tar --fail-missing --no-recursive $(git rev-parse HEAD) beta/gamma/gamma_folder
 	local tar_files=()
 	check_tar_content test.tar "${tar_files[@]}"
@@ -489,7 +489,7 @@ check_tar_content()
 	add_submodule beta gamma
 	add_submodule alpha beta
 	cd alpha
-	git submodule update --init --recursive
+	git -c protocol.file.allow=always submodule update --init --recursive
 	run_git_archive_all -o test.tar --fail-missing --prefix=prefix/ $(git rev-parse HEAD) beta/gamma/gamma_folder
 	local tar_files
 	repo_files tar_files gamma prefix/beta/gamma/
@@ -506,7 +506,7 @@ check_tar_content()
 	add_submodule beta gamma
 	add_submodule alpha beta
 	cd alpha
-	git submodule update --init --recursive
+	git -c protocol.file.allow=always submodule update --init --recursive
 	run_git_archive_all -o test.tar --fail-missing $(git rev-parse HEAD) beta/gamma/gamma_folder
 	local tar_files
 	repo_files tar_files gamma beta/gamma/
@@ -524,7 +524,7 @@ check_tar_content()
 	add_submodule beta gamma
 	add_submodule alpha beta
 	cd alpha
-	git submodule update --init --recursive
+	git -c protocol.file.allow=always submodule update --init --recursive
 	run_git_archive_all -o test.tar --fail-missing --prefix=pre$'\n'fix/ $(git rev-parse HEAD)
 	local tar_files=(pre$'\n'fix/.gitmodules pre$'\n'fix/beta/.gitmodules)
 	repo_files tar_files+ alpha pre$'\n'fix/

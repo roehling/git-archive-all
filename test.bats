@@ -62,7 +62,7 @@ create_repo()
 		mkdir -p "$(dirname "$repo/$file")"
 		echo $RANDOM > "$repo/$file"
 	done
-	git -C "$repo" init
+	git -C "$repo" init -b main
 	git -C "$repo" add .
 	git -C "$repo" commit -m "Initial commit"
 }
@@ -358,7 +358,7 @@ check_tar_content()
 	echo $RANDOM > beta/new_file.txt
 	git -C beta add .
 	git -C beta commit -m "new file"
-	git -C alpha/beta pull origin master
+	git -C alpha/beta pull origin main
 	echo $RANDOM > alpha/yet_another_file.txt
 	git -C alpha add .
 	git -C alpha commit -m "updated submodule"

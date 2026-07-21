@@ -37,7 +37,8 @@ fail_missing=0
 worktree_attributes=0
 compress_flag=
 add_files=()
-options="$(getopt -n "$self" -o hlrv0123456789o: -l help,list,version,verbose,worktree-attributes,add-file:,recursive,no-recursive,fail-missing,format:,output:,prefix: -- "$@")"
+mtime=
+options="$(getopt -n "$self" -o hlrv0123456789o: -l help,list,version,verbose,worktree-attributes,add-file:,add-virtual-file:,mtime:,recursive,no-recursive,fail-missing,format:,output:,prefix: -- "$@")"
 eval "set -- $options"
 
 while [[ "$#" -gt 0 ]]
@@ -51,8 +52,10 @@ do
 			          $whsp [-o <file> | --output=<file>] [--worktree-attributes]
 			          $whsp [-v | --verbose] [--recursive | --no-recursive]
 			          $whsp [--fail-missing] [-0 | -1 | -2 | ... | -9 ]
-			          $whsp [--add-file=<file> [...]] <tree-ish> [<path>...]
-
+			          $whsp [--add-file=<file> [...]] [--mtime=<time>]
+			          $whsp [--add-virtual-file=<name>:<content> [...]]
+			          $whsp <tree-ish> [<path>...]
+			
 			$self works similar to git-archive, but will also include files
 			from submodules into the archive.
 
@@ -83,8 +86,12 @@ do
 			worktree_attributes=1
 			shift
 			;;
-		--add-file)
-			add_files+=("--add-file=$2")
+		--add-file|--add-virtual-file)
+			add_files+=("$1=$2")
+			shift 2
+			;;
+		--mtime)
+			mtime="$2"
 			shift 2
 			;;
 		-r|--recursive)
@@ -132,6 +139,7 @@ then
 	extra_args+=("-v")
 fi
 [[ "$worktree_attributes" -eq 0 ]] || extra_args+=("--worktree-attributes")
+[[ -n "$mtime" ]] && extra_args+=("--mtime=$mtime")
 
 if [[ -z "$format" ]]
 then
@@ -411,7 +419,9 @@ B<git-archive-all> [B<--format=><I<fmt>>] [B<--list>] [B<--prefix=><I<prefix>>]
                 [B<-o> <I<file>> | B<--output=><I<file>>] [B<--worktree-attributes>]
                 [B<-v> | B<--verbose>] [B<--recursive> | B<--no-recursive>]
                 [B<--fail-missing>] [B<-0> | B<-1> | B<-2> | ... | B<-9>]
-                [B<--add-file=><I<file>>] <I<tree-ish>> [<I<path>> ...]
+                [B<--add-file=><I<file>>]
+				[B<--add-virtual-file=><I<name>>:<I<content>>]
+				[B<--mtime=><I<time>>] <I<tree-ish>> [<I<path>> ...]
 
 =head1 DESCRIPTION
 

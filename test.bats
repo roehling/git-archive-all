@@ -237,6 +237,17 @@ check_tar_content()
 	check_tar_content test.tar "${tar_files[@]}"
 }
 
+@test "simple repo, add virtual files" {
+	create_repo alpha
+	cd alpha
+	mkdir subdir
+	run_git_archive_all -o test.tar --prefix=prefix/ --add-virtual-file=prefix/virtual1:one --add-virtual-file=prefix/subdir/virtual2:two $(git rev-parse HEAD)
+	local tar_files
+	repo_files tar_files alpha prefix/
+	tar_files+=("prefix/virtual1" "prefix/subdir/virtual2")
+	check_tar_content test.tar "${tar_files[@]}"
+}
+
 @test "repo with submodule" {
 	create_repo alpha
 	create_repo beta
@@ -388,6 +399,19 @@ check_tar_content()
 	repo_files tar_files+ alpha prefix/
 	repo_files tar_files+ beta prefix/beta/
 	tar_files+=("prefix/untracked1" "prefix/untracked2")
+	check_tar_content test.tar "${tar_files[@]}"
+}
+
+@test "repo with submodule, add virtual files" {
+	create_repo alpha
+	create_repo beta
+	add_submodule alpha beta
+	cd alpha
+	run_git_archive_all -o test.tar --prefix=prefix/ --add-virtual-file=prefix/virtual1:one --add-virtual-file=prefix/subdir/virtual2:two $(git rev-parse HEAD)
+	local tar_files=("prefix/.gitmodules")
+	repo_files tar_files+ alpha prefix/
+	repo_files tar_files+ beta prefix/beta/
+	tar_files+=("prefix/virtual1" "prefix/subdir/virtual2")
 	check_tar_content test.tar "${tar_files[@]}"
 }
 

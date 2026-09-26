@@ -420,8 +420,8 @@ B<git-archive-all> [B<--format=><I<fmt>>] [B<--list>] [B<--prefix=><I<prefix>>]
                 [B<-v> | B<--verbose>] [B<--recursive> | B<--no-recursive>]
                 [B<--fail-missing>] [B<-0> | B<-1> | B<-2> | ... | B<-9>]
                 [B<--add-file=><I<file>>]
-				[B<--add-virtual-file=><I<name>>:<I<content>>]
-				[B<--mtime=><I<time>>] <I<tree-ish>> [<I<path>> ...]
+                [B<--add-virtual-file=><I<name>>:<I<content>>]
+                [B<--mtime=><I<time>>] <I<tree-ish>> [<I<path>> ...]
 
 =head1 DESCRIPTION
 
